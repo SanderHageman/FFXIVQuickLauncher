@@ -26,6 +26,7 @@ namespace XIVLauncher.Windows.ViewModel
 {
     class MainWindowViewModel : INotifyPropertyChanged
     {
+        public bool PreviousLoginFailure = false;
         public bool IsLoggingIn;
 
         private readonly Launcher _launcher = new();
@@ -362,6 +363,7 @@ namespace XIVLauncher.Windows.ViewModel
             }
             catch (OauthLoginException oauthLoginException)
             {
+                PreviousLoginFailure = true;
                 var failedOauthMessage = oauthLoginException.Message.Replace("\\r\\n", "\n").Replace("\r\n", "\n");
                 if (App.Settings.AutologinEnabled)
                 {
@@ -410,6 +412,7 @@ namespace XIVLauncher.Windows.ViewModel
                     return;
                 }
 
+                PreviousLoginFailure = true;
                 ErrorWindow.Show(ex, "Please also check your login information or try again.", "Login");
                 Reactivate();
             }
@@ -597,6 +600,49 @@ namespace XIVLauncher.Windows.ViewModel
 
         private string AskForOtp()
         {
+            var otp = "";
+            if (!string.IsNullOrWhiteSpace(AccountManager?.CurrentAccount?.OtpUri) && !PreviousLoginFailure)
+            {
+                try
+                {
+                    OtpNet.Totp totp;
+
+                    if (Uri.TryCreate(AccountManager.CurrentAccount.OtpUri, UriKind.Absolute, out var uri))
+                    {
+                            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+                            if (!query.AllKeys.Contains("secret"))
+                            {
+                                throw new Exception("No Secret");
+                            }
+
+                            var secretKey = OtpNet.Base32Encoding.ToBytes(query["secret"]);
+                            if (!query.AllKeys.Contains("period") || !int.TryParse(query["period"], out var period))
+                                period = 30;
+                            if (!query.AllKeys.Contains("digits") || !int.TryParse(query["digits"], out var digits))
+                                digits = 6;
+                            if (!query.AllKeys.Contains("algorithm") || !Enum.TryParse(query["algorithm"], true, out OtpNet.OtpHashMode algorithm))
+                                algorithm = OtpNet.OtpHashMode.Sha1;
+
+                            totp = new OtpNet.Totp(secretKey, step: period, mode: algorithm, totpSize: digits);
+                    }
+                    else
+                    {
+                        var secretKey = OtpNet.Base32Encoding.ToBytes(AccountManager.CurrentAccount.OtpUri);
+                        totp = new OtpNet.Totp(secretKey);
+                    }
+
+                    otp = totp.ComputeTotp();
+                }
+                catch (Exception)
+                {
+                    otp = "";
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(otp))
+                return otp;
+            
             var otpDialog = OtpInputDialogFactory();
             otpDialog.ShowDialog();
 
