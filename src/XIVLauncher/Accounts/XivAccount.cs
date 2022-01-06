@@ -62,8 +62,6 @@ namespace XIVLauncher.Accounts
                 try
                 {
                     var a = CredentialManager.RemoveCredentials($"FINAL FANTASY XIV-{UserName.ToLower()}-OTP");
-
-                    Log.Information($"Set Password RemoveCredentials: {a}");
                 }
                 catch (Win32Exception)
                 {
@@ -75,8 +73,6 @@ namespace XIVLauncher.Accounts
                     UserName = UserName,
                     Password = value
                 });
-
-                Log.Information($"Set Password SaveCredentials: {b}");
             }
         }
 
