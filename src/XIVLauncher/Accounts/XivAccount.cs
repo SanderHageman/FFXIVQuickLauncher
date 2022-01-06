@@ -57,7 +57,6 @@ namespace XIVLauncher.Accounts
             }
             set
             {
-                // TODO: Remove logging here after making sure fix was good
                 // This will throw when the account doesn't actually exist
                 try
                 {
